@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PropTech Премиум Карта</title>
+    <!-- Подключаем стили карты Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com" />
+    <script src="https://unpkg.com"></script>
+    <!-- Подключаем официальный скрипт Telegram Web App -->
+    <script src="https://telegram.org"></script>
+    <style>
+        body, html {
+            margin: 0; padding: 0; height: 100%; width: 100%;
+            background-color: #111; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        #map { height: 100%; width: 100%; }
+        .save-btn {
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            z-index: 1000; background: #248bed; color: white; border: none;
+            padding: 12px 30px; font-size: 16px; font-weight: bold; border-radius: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5); cursor: pointer; display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="map"></div>
+    <button id="saveGeo" class="save-btn">Сохранить радиус поиска</button>
+
+    <script>
+        // Инициализируем Telegram Web App
+        const tg = window.Telegram.WebApp;
+        tg.expand(); // Расширяем на весь экран телефона
+
+        // Базовый центр Минска, если ГЕО телефона недоступно
+        let startLat = 53.9006;
+        let startLon = 27.5590;
+
+        // Создаем карту Leaflet
+        const map = L.map('map', { zoomControl: false }).setView([startLat, startLon], 13);
+
+        // Подключаем стильную темную премиум подложку CartoDB Dark Matter
+        L.tileLayer('https://{s}://{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap &copy; CARTO'
+        }).addTo(map);
+
+        // Логика 1: Режим настройки фильтра (клик по карте)
+        let searchCircle = null;
+        let selectedLat = null;
+        let selectedLon = null;
+        const saveButton = document.getElementById('saveGeo');
+
+        map.on('click', function(e) {
+            selectedLat = e.latlng.lat;
+            selectedLon = e.latlng.lng;
+
+            // Удаляем старый круг, если он был
+            if (searchCircle) { map.removeLayer(searchCircle); }
+
+            // Рисуем зону радиусом 2 км вокруг клика
+            searchCircle = L.circle([selectedLat, selectedLon], {
+                color: '#248bed', fillColor: '#248bed', fillOpacity: 0.15, radius: 2000
+            }).addTo(map);
+
+            saveButton.style.display = 'block';
+        });
+
+        // Отправка выбранных координат обратно в бота при нажатии кнопки
+        saveButton.addEventListener('click', function() {
+            const data = { lat: selectedLat, lon: selectedLon, radius_km: 2.0 };
+            tg.sendData(JSON.stringify(data)); // Отправляет данные боту и закрывает Mini App
+        });
+
+        // Логика 2: Отображение объектов стандартными маркерами Leaflet
+        const mockTarget = [53.9026, 27.5610];
+        const mockCompetitors = [
+            [53.9040, 27.5580, "Цена: 68 000$. Выше рынка!"],
+            [53.8990, 27.5650, "Цена: 65 500$. Средняя цена."],
+            [53.9010, 27.5520, "Цена: 67 000$. Обычный рынок."]
+        ];
+
+        // Стандартный синий маркер - целевая выгодная квартира
+        L.marker(mockTarget).addTo(map)
+            .bindPopup("<b>🔥 Выгодный объект PropTech!</b><br>Цена: 54 000$<br>Выгода относительно соседей: 14%").openPopup();
+
+        // Стандартные маркеры для конкурентов рынка вокруг
+        mockCompetitors.forEach(function(comp) {
+            L.marker([comp[0], comp[1]]).addTo(map).bindPopup(`<b>❌ Конкурент рынка</b><br>${comp[2]}`);
+        });
+
+    </script>
+</body>
+</html>
